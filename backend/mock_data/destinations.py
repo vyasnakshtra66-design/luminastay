@@ -1,6 +1,6 @@
 MOCK_DESTINATIONS = [
     {"_id": "1", "city": "Dubai", "country": "UAE",
-     "image": "https://images.unsplash.com/photo-1582672060674-bc2bd8088afb?w=600&q=80",
+     "image": "https://images.unsplash.com/photo-1768069794857-b4690ab163a3?w=600&q=80",
      "description": "Experience luxury in the city of gold, from world-class shopping to stunning architecture.",
      "hotelCount": 284, "startingPrice": 89, "currency": "USD",
      "category": ["beach", "luxury", "shopping"], "rating": 4.7,
@@ -103,7 +103,7 @@ MOCK_FEATURED_HOTELS = [
 MOCK_TRAVEL_GUIDES = [
     {"_id": "g1", "title": "Ultimate Dubai Travel Guide",
      "description": "Everything you need to know before visiting Dubai.",
-     "image": "https://images.unsplash.com/photo-1582672060674-bc2bd8088afb?w=600&q=80", "destinationId": "1"},
+     "image": "https://images.unsplash.com/photo-1768069794857-b4690ab163a3?w=600&q=80", "destinationId": "1"},
     {"_id": "g2", "title": "Paris on a Budget",
      "description": "Enjoy the city of lights without breaking the bank.",
      "image": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=600&q=80", "destinationId": "2"},
