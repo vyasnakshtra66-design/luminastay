@@ -1,0 +1,38 @@
+MOCK_NOTIFICATIONS = [
+    {"_id": "n1", "userId": "user_1", "title": "Booking Confirmed!",
+     "description": "Your stay at Grand Palace Hotel has been confirmed. Booking ID: LUM829471",
+     "category": "booking", "read": False,
+     "createdAt": "2026-07-20T10:35:00Z", "updatedAt": "2026-07-20T10:35:00Z"},
+    {"_id": "n2", "userId": "user_1", "title": "Payment Successful",
+     "description": "Your payment of $1,167 for Grand Palace Hotel has been processed successfully.",
+     "category": "payment", "read": False,
+     "createdAt": "2026-07-20T10:32:00Z", "updatedAt": "2026-07-20T10:32:00Z"},
+    {"_id": "n3", "userId": "user_1", "title": "Weekend Flash Sale!",
+     "description": "Get 40% off on luxury suites this weekend. Use code FLASH40.",
+     "category": "offer", "read": False,
+     "createdAt": "2026-07-19T09:00:00Z", "updatedAt": "2026-07-19T09:00:00Z"},
+    {"_id": "n4", "userId": "user_1", "title": "Check-in Reminder",
+     "description": "Your check-in at Grand Palace Hotel is in 7 days. Prepare for your trip!",
+     "category": "booking", "read": True,
+     "createdAt": "2026-07-18T08:00:00Z", "updatedAt": "2026-07-18T08:00:00Z"},
+    {"_id": "n5", "userId": "user_1", "title": "Welcome to LuminaStay!",
+     "description": "Thank you for joining. Start exploring your first stay with a 15% welcome discount.",
+     "category": "account", "read": True,
+     "createdAt": "2026-07-15T12:00:00Z", "updatedAt": "2026-07-15T12:00:00Z"},
+    {"_id": "n6", "userId": "user_1", "title": "Price Drop Alert",
+     "description": "The price for Ocean View Resort has dropped by 25%. Check it out!",
+     "category": "offer", "read": True,
+     "createdAt": "2026-07-14T14:30:00Z", "updatedAt": "2026-07-14T14:30:00Z"},
+    {"_id": "n7", "userId": "user_1", "title": "Booking Cancelled",
+     "description": "Your booking at City Hotel has been cancelled. Refund of $358 has been initiated.",
+     "category": "booking", "read": True,
+     "createdAt": "2026-04-20T12:00:00Z", "updatedAt": "2026-04-20T12:00:00Z"},
+    {"_id": "n8", "userId": "user_1", "title": "Refund Processed",
+     "description": "Your refund of $358 for City Hotel cancellation has been credited to your account.",
+     "category": "payment", "read": True,
+     "createdAt": "2026-04-22T10:00:00Z", "updatedAt": "2026-04-22T10:00:00Z"},
+]
+
+
+def get_mock_notifications(user_id="user_1"):
+    return [n for n in MOCK_NOTIFICATIONS if n["userId"] == user_id]

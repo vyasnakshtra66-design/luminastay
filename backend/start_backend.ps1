@@ -1,0 +1,1 @@
+Set-Location 'C:\Users\nakshtra\Desktop\hotel\backend'; $env:SECRET_KEY='test-secret-key-for-dev-123'; & 'C:\Users\nakshtra\Desktop\hotel\backend\venv\Scripts\python.exe' -m uvicorn main:app --host 0.0.0.0 --port 8000

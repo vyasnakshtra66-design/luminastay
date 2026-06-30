@@ -1,0 +1,39 @@
+# Backend
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/*.log
+backend/.env
+
+# Frontend
+nextjs-app/.next/
+nextjs-app/node_modules/
+nextjs-app/.env.local
+nextjs-app/.env.production
+
+# Logs
+*.log
+audit.log
+
+# Temp scripts
+setup-*.ps1
+go-live.ps1
+
+# Old HTML files
+index.html
+listing.html
+styles-*.css
+
+# Old directories
+room-details/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
