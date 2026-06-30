@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from services.db_service import find_many, update_one, delete_many, delete_one
-from auth_jwt import get_optional_user
+from auth_jwt import get_current_user
 from mock_data.notifications import get_mock_notifications
 
 logger = logging.getLogger(__name__)
@@ -15,11 +15,9 @@ async def get_notifications(
     unreadOnly: bool = Query(False),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    user_id: str | None = Depends(get_optional_user),
-    userId: str | None = Query(None),
+    current_user_id: str = Depends(get_current_user),
 ):
-    uid = user_id or userId or "user_1"
-    filter_dict: dict = {"userId": uid}
+    filter_dict: dict = {"userId": current_user_id}
     if category and category != "all":
         filter_dict["category"] = category
     if unreadOnly:
@@ -29,7 +27,7 @@ async def get_notifications(
     if result["data"] is not None:
         return {"notifications": result["data"], "pagination": result["pagination"], "source": "mongodb"}
 
-    items = get_mock_notifications(uid)
+    items = get_mock_notifications(current_user_id)
     if category and category != "all":
         items = [n for n in items if n["category"] == category]
     if unreadOnly:
@@ -58,21 +56,19 @@ class NotificationAction(BaseModel):
 @router.patch("")
 async def update_notification(
     body: NotificationAction,
-    user_id: str | None = Depends(get_optional_user),
-    userId: str | None = Query(None),
+    current_user_id: str = Depends(get_current_user),
 ):
-    uid = user_id or userId or "user_1"
     if body.action == "markRead" and body.notificationId:
         updated = await update_one(
             "notifications",
-            {"userId": uid, "_id": body.notificationId},
+            {"userId": current_user_id, "_id": body.notificationId},
             {"$set": {"read": True}},
         )
         if updated:
             return {"success": True, "source": "mongodb"}
     elif body.action == "markAllRead":
         from services.db_service import update_many
-        await update_many("notifications", {"userId": uid}, {"$set": {"read": True}})
+        await update_many("notifications", {"userId": current_user_id}, {"$set": {"read": True}})
         return {"success": True, "source": "mongodb"}
 
     return {"success": True, "source": "mock"}
@@ -85,12 +81,10 @@ class NotificationDelete(BaseModel):
 @router.delete("")
 async def delete_notification(
     body: NotificationDelete,
-    user_id: str | None = Depends(get_optional_user),
-    userId: str | None = Query(None),
+    current_user_id: str = Depends(get_current_user),
 ):
-    uid = user_id or userId or "user_1"
     if body.notificationId == "all":
-        await delete_many("notifications", {"userId": uid})
+        await delete_many("notifications", {"userId": current_user_id})
     elif body.notificationId:
-        await delete_one("notifications", {"userId": uid, "_id": body.notificationId})
+        await delete_one("notifications", {"userId": current_user_id, "_id": body.notificationId})
     return {"success": True, "source": "mongodb" if body.notificationId else "mock"}

@@ -38,6 +38,10 @@ def create_token(user_id: str) -> str:
     return jwt.encode({"sub": user_id, "exp": expire}, settings.secret_key, algorithm=settings.algorithm)
 
 
+def is_production() -> bool:
+    return settings.frontend_url.startswith("https://")
+
+
 def set_token_cookie(response: Response, token: str):
     max_age = settings.access_token_expire_minutes * 60
     response.set_cookie(
@@ -46,7 +50,7 @@ def set_token_cookie(response: Response, token: str):
         max_age=max_age,
         httponly=True,
         samesite="lax",
-        secure=False,
+        secure=is_production(),
         path="/",
     )
 

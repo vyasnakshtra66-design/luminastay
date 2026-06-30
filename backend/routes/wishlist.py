@@ -1,9 +1,9 @@
 import logging
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from services.db_service import find_one, update_one
-from auth_jwt import get_optional_user
+from auth_jwt import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/wishlist", tags=["wishlist"])
@@ -18,12 +18,8 @@ def _get_mock_wishlist() -> list[int]:
 
 
 @router.get("")
-async def get_wishlist(
-    user_id: str | None = Depends(get_optional_user),
-    userId: str | None = Query(None),
-):
-    uid = user_id or userId or "user_1"
-    wishlist = await find_one("wishlists", {"userId": uid}, {"_id": 0})
+async def get_wishlist(current_user_id: str = Depends(get_current_user)):
+    wishlist = await find_one("wishlists", {"userId": current_user_id}, {"_id": 0})
     if wishlist is not None:
         return {"hotelIds": wishlist.get("hotelIds", []), "source": "mongodb"}
     return {"hotelIds": _get_mock_wishlist(), "source": "mock"}
@@ -32,16 +28,14 @@ async def get_wishlist(
 @router.post("")
 async def add_to_wishlist(
     body: WishlistAdd,
-    user_id: str | None = Depends(get_optional_user),
-    userId: str | None = Query(None),
+    current_user_id: str = Depends(get_current_user),
 ):
     if not body.hotelId:
         return JSONResponse(status_code=400, content={"error": "Valid hotelId required"})
-    uid = user_id or userId or "user_1"
 
     result = await update_one(
         "wishlists",
-        {"userId": uid},
+        {"userId": current_user_id},
         {"$addToSet": {"hotelIds": body.hotelId}},
         upsert=True,
     )
@@ -53,16 +47,14 @@ async def add_to_wishlist(
 @router.delete("")
 async def remove_from_wishlist(
     hotelId: int,
-    user_id: str | None = Depends(get_optional_user),
-    userId: str | None = Query(None),
+    current_user_id: str = Depends(get_current_user),
 ):
     if not hotelId:
         return JSONResponse(status_code=400, content={"error": "Valid hotelId required"})
-    uid = user_id or userId or "user_1"
 
     result = await update_one(
         "wishlists",
-        {"userId": uid},
+        {"userId": current_user_id},
         {"$pull": {"hotelIds": hotelId}},
     )
     if result:

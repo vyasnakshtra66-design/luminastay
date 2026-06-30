@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from services.db_service import find_many, update_one
-from auth_jwt import get_optional_user, get_current_user
+from auth_jwt import get_current_user
 from mock_data.bookings import get_mock_bookings
 
 logger = logging.getLogger(__name__)
@@ -23,11 +23,9 @@ async def get_bookings(
     search: str = Query(""),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    user_id: str | None = Depends(get_optional_user),
-    userId: str | None = Query(None),
+    current_user_id: str = Depends(get_current_user),
 ):
-    uid = user_id or userId or "user_1"
-    filter_dict: dict = {"userId": uid}
+    filter_dict: dict = {"userId": current_user_id}
     if status and status != "all":
         filter_dict["status"] = status
     if search:
@@ -39,11 +37,11 @@ async def get_bookings(
             {"hotelName": {"$regex": pattern}},
         ]
 
-    result = await find_many("bookings", filter_dict, {"_id": 0}, [("createdAt", -1)], page, limit)
+    result = await find_many("bookings", filter_dict, {"_id": 0}, [("rating", -1)], page, limit)
     if result["data"] is not None:
         return {"bookings": result["data"], "pagination": result["pagination"], "source": "mongodb"}
 
-    items = get_mock_bookings(uid)
+    items = get_mock_bookings(current_user_id)
     total = len(items)
     skip = (page - 1) * limit
     paged = items[skip : skip + limit]
@@ -63,16 +61,14 @@ async def get_bookings(
 @router.put("")
 async def update_booking(
     body: CancelRequest,
-    user_id: str | None = Depends(get_optional_user),
-    userId: str | None = Query(None),
+    current_user_id: str = Depends(get_current_user),
 ):
     if body.action != "cancel":
         raise HTTPException(status_code=400, detail="Invalid action")
-    uid = user_id or userId or "user_1"
 
     updated = await update_one(
         "bookings",
-        {"bookingId": body.bookingId, "userId": uid},
+        {"bookingId": body.bookingId, "userId": current_user_id},
         {"$set": {"status": "cancelled", "paymentStatus": "refunded"}},
     )
     if updated:

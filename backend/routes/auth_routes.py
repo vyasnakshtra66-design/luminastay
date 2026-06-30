@@ -1,9 +1,14 @@
 import re
+import time
+import uuid
+import random
+import os
 import logging
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Response, Request
 from pydantic import BaseModel
 from services.db_service import find_one, insert_one, update_one
 from auth_jwt import hash_password, verify_password, create_token, set_token_cookie, validate_password_strength
+from limiter import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -27,7 +32,8 @@ class RegisterRequest(BaseModel):
 
 
 @router.post("/login")
-async def login(body: LoginRequest, response: Response):
+@limiter.limit("10/minute")
+async def login(request: Request, body: LoginRequest, response: Response):
     if not body.email or not body.password:
         raise HTTPException(status_code=400, detail="Email and password required")
 
@@ -46,7 +52,8 @@ async def login(body: LoginRequest, response: Response):
 
 
 @router.post("/register", status_code=201)
-async def register(body: RegisterRequest):
+@limiter.limit("5/minute")
+async def register(request: Request, body: RegisterRequest):
     if not body.name.strip():
         raise HTTPException(status_code=400, detail="Name is required")
     if not body.email.strip() or not EMAIL_REGEX.match(body.email):
@@ -62,7 +69,6 @@ async def register(body: RegisterRequest):
     if existing:
         raise HTTPException(status_code=409, detail="An account with this email already exists")
 
-    import uuid
     user_id = str(uuid.uuid4())
 
     success = await insert_one("users", {
@@ -106,14 +112,28 @@ class VerifyOTPRequest(BaseModel):
 
 
 OTP_STORE: dict[str, dict] = {}
+OTP_MAX_ENTRIES = 500
+
+
+def _cleanup_expired():
+    now = time.time()
+    expired = [k for k, v in OTP_STORE.items() if v.get("expires", 0) < now]
+    for k in expired:
+        del OTP_STORE[k]
+    if len(OTP_STORE) > OTP_MAX_ENTRIES:
+        sorted_keys = sorted(OTP_STORE.keys(), key=lambda k: OTP_STORE[k].get("expires", 0))
+        for k in sorted_keys[: len(OTP_STORE) - OTP_MAX_ENTRIES]:
+            del OTP_STORE[k]
 
 
 @router.post("/send-otp")
-async def send_otp(body: SendOTPRequest):
-    import random, time, os
+@limiter.limit("3/minute")
+async def send_otp(request: Request, body: SendOTPRequest):
     identifier = body.email or body.phone
     if not identifier:
         raise HTTPException(status_code=400, detail="Email or phone is required")
+
+    _cleanup_expired()
 
     otp = str(random.randint(100000, 999999))
     OTP_STORE[identifier] = {"otp": otp, "expires": time.time() + 300}
@@ -129,12 +149,12 @@ async def send_otp(body: SendOTPRequest):
 
 
 @router.post("/verify-otp")
-async def verify_otp(body: VerifyOTPRequest, response: Response):
+@limiter.limit("10/minute")
+async def verify_otp(request: Request, body: VerifyOTPRequest, response: Response):
     identifier = body.email or body.phone
     if not identifier:
         raise HTTPException(status_code=400, detail="Email or phone is required")
 
-    import time
     stored = OTP_STORE.get(identifier)
     if not stored or stored["otp"] != body.otp or stored["expires"] < time.time():
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
@@ -160,11 +180,11 @@ async def verify_otp(body: VerifyOTPRequest, response: Response):
 
 
 @router.post("/forgot-password")
-async def forgot_password(body: ForgotPasswordRequest):
+@limiter.limit("3/minute")
+async def forgot_password(request: Request, body: ForgotPasswordRequest):
     if not body.email.strip() or not EMAIL_REGEX.match(body.email):
         raise HTTPException(status_code=400, detail="Please provide a valid email address")
 
-    import uuid, time
     token = str(uuid.uuid4())
 
     user = await find_one("users", {"email": body.email.lower()})
@@ -175,6 +195,7 @@ async def forgot_password(body: ForgotPasswordRequest):
     else:
         uid = ""
 
+    _cleanup_expired()
     RESET_TOKENS[token] = {"userId": uid, "email": body.email.lower(), "expires": time.time() + 3600}
 
     from services.email_service import send_password_reset
@@ -197,7 +218,6 @@ async def reset_password(body: ResetPasswordRequest):
     if pw_error:
         raise HTTPException(status_code=400, detail=pw_error)
 
-    import time
     token_data = RESET_TOKENS.get(body.token)
     if token_data and token_data["expires"] > time.time():
         user = await update_one("users", {"email": token_data["email"]}, {"$set": {"password": hash_password(body.password)}, "$unset": {"resetToken": "", "resetTokenExpires": ""}})
