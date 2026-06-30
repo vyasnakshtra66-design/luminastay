@@ -9,6 +9,7 @@ pydantic==2.9.2
 pydantic-settings==2.5.2
 slowapi==0.1.9
 mongomock
+sentinels
 resend==2.32.2
 
 # testing
