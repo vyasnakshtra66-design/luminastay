@@ -24,6 +24,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      { source: "/register", destination: "/signup", permanent: true },
+    ];
+  },
   experimental: {
     optimizePackageImports: ["lucide-react", "framer-motion"],
   },
