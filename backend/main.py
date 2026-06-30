@@ -74,6 +74,7 @@ ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:8000",
     settings.frontend_url,
+    "https://nextjs-app-one-kohl.vercel.app",
 ]
 
 app.add_middleware(
@@ -98,8 +99,6 @@ async def csrf_middleware(request: Request, call_next):
             return JSONResponse(status_code=403, content={"error": "CSRF check failed: unknown origin"})
         if not origin and referer and not any(referer.startswith(o) for o in ALLOWED_ORIGINS):
             return JSONResponse(status_code=403, content={"error": "CSRF check failed: unknown referer"})
-        if not origin and not referer:
-            return JSONResponse(status_code=403, content={"error": "CSRF check failed: no origin or referer"})
     response = await call_next(request)
     return response
 
