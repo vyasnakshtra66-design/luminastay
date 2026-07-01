@@ -33,7 +33,7 @@ async def get_offers(
 
     result = await find_many("offers", filter_dict, {"_id": 0}, [("createdAt", -1)], page, limit)
     if result["data"] is not None:
-        return {"offers": result["data"], "pagination": result["pagination"], "source": "mongodb"}
+        return {"offers": result["data"], "pagination": result["pagination"], "source": "database"}
 
     active_bool = None
     if active == "true":
@@ -53,5 +53,5 @@ async def get_offers(
             "totalPages": (total + limit - 1) // limit,
             "hasMore": skip + limit < total,
         },
-        "source": "mock",
+        "source": "fallback",
     }

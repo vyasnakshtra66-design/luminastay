@@ -1,6 +1,7 @@
 import uuid
 import re
 import secrets
+import hashlib
 import uvicorn
 import logging
 from fastapi import FastAPI, Request, HTTPException
@@ -39,6 +40,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 logger.addFilter(PasswordRedactFilter())
 
+logging.getLogger().addFilter(PasswordRedactFilter())
 for name in ["uvicorn", "uvicorn.access", "slowapi"]:
     h = logging.getLogger(name)
     h.addFilter(PasswordRedactFilter())
@@ -89,19 +91,24 @@ CSRF_COOKIE = "csrf_token"
 
 @app.middleware("http")
 async def csrf_middleware(request: Request, call_next):
-    if request.method in MUTATING_METHODS:
+    if request.method in MUTATING_METHODS and request.url.path != "/api/auth/csrf":
         origin = request.headers.get("origin", "")
         referer = request.headers.get("referer", "")
         if origin and not any(origin.rstrip("/") == o for o in ALLOWED_ORIGINS):
             return JSONResponse(status_code=403, content={"error": "CSRF check failed: unknown origin"})
         if not origin and referer and not any(referer.startswith(o) for o in ALLOWED_ORIGINS):
             return JSONResponse(status_code=403, content={"error": "CSRF check failed: unknown referer"})
+        csrf_cookie = request.cookies.get(CSRF_COOKIE)
+        csrf_header = request.headers.get("X-CSRF-Token", "")
+        if csrf_cookie and csrf_header and csrf_cookie != csrf_header:
+            return JSONResponse(status_code=403, content={"error": "CSRF check failed: token mismatch"})
     response = await call_next(request)
     return response
 
 
 audit_logger = logging.getLogger("audit")
-audit_handler = logging.FileHandler("audit.log")
+from logging.handlers import RotatingFileHandler
+audit_handler = RotatingFileHandler("audit.log", maxBytes=10*1024*1024, backupCount=5)
 audit_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
 audit_logger.addHandler(audit_handler)
 audit_logger.setLevel(logging.INFO)
@@ -111,8 +118,9 @@ audit_logger.propagate = False
 @app.middleware("http")
 async def audit_middleware(request: Request, call_next):
     if request.method in MUTATING_METHODS and not request.url.path.startswith("/api/auth/csrf"):
-        user_id = request.headers.get("authorization", "anonymous")[:20]
-        audit_logger.info("[%s] %s %s", user_id, request.method, request.url.path)
+        token = request.headers.get("authorization", "anonymous")
+        token_hash = hashlib.sha256(token.encode()).hexdigest()[:16]
+        audit_logger.info("[%s] %s %s", token_hash, request.method, request.url.path)
     response = await call_next(request)
     return response
 
@@ -125,7 +133,7 @@ async def get_csrf_token(request: Request):
     existing = request.cookies.get(CSRF_COOKIE)
     token = existing or secrets.token_hex(32)
     resp = JSONResponse(content={"csrfToken": token})
-    resp.set_cookie(key=CSRF_COOKIE, value=token, httponly=False, samesite="strict", secure=IS_PRODUCTION, path="/")
+    resp.set_cookie(key=CSRF_COOKIE, value=token, httponly=True, samesite="strict", secure=IS_PRODUCTION, path="/")
     return resp
 
 
@@ -138,8 +146,12 @@ async def security_headers(request: Request, call_next):
     if IS_PRODUCTION:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     csp = (
-        "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https:"
+        "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://luminastay.onrender.com https://nextjs-app-one-kohl.vercel.app"
     )
+    if not IS_PRODUCTION:
+        csp = (
+            "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' http://localhost:8001 http://localhost:3000 https:"
+        )
     response.headers["Content-Security-Policy"] = csp
     response.headers["Cache-Control"] = "no-store"
     return response

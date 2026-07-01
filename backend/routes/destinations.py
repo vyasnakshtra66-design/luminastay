@@ -16,9 +16,9 @@ async def get_destinations(
     limit: int = Query(20, ge=1, le=100),
 ):
     if type == "featured-hotels":
-        return {"hotels": MOCK_FEATURED_HOTELS, "source": "mock"}
+        return {"hotels": MOCK_FEATURED_HOTELS, "source": "fallback"}
     if type == "guides":
-        return {"guides": MOCK_TRAVEL_GUIDES, "source": "mock"}
+        return {"guides": MOCK_TRAVEL_GUIDES, "source": "fallback"}
 
     filter_dict: dict = {"active": True}
     if category and category != "all":
@@ -28,7 +28,7 @@ async def get_destinations(
 
     result = await find_many("destinations", filter_dict, {"_id": 0}, [("rating", -1)], page, limit)
     if result["data"] is not None:
-        return {"destinations": result["data"], "pagination": result["pagination"], "source": "mongodb"}
+        return {"destinations": result["data"], "pagination": result["pagination"], "source": "database"}
 
     items = get_mock_destinations(category=category, popular=popular)
     total = len(items)
@@ -43,5 +43,5 @@ async def get_destinations(
             "totalPages": (total + limit - 1) // limit,
             "hasMore": skip + limit < total,
         },
-        "source": "mock",
+        "source": "fallback",
     }

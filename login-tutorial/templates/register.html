@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Register - Login System{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="form-card">
+        <h2>Create Account</h2>
+        <p class="form-subtitle">Join us today. It's free!</p>
+
+        <!--
+            ─── REGISTRATION FORM ───
+
+            FLOW:
+            1. User fills username, email, password
+            2. JavaScript validates on client-side (instant feedback)
+            3. JavaScript sends POST /api/register
+            4. Server validates and stores user
+            5. Success → redirect to login page
+            6. Error → show error message
+
+            NO HTML form action/submit — we use JavaScript fetch() instead
+            This is called AJAX (Asynchronous JavaScript and XML)
+            Benefit: page doesn't reload, errors shown inline
+        -->
+        <form id="registerForm">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    placeholder="Choose a username (min 3 chars)"
+                    required
+                    minlength="3"
+                >
+                <!--
+                    required → browser won't submit if empty
+                    minlength → browser checks minimum length
+                    Both are HTML5 validation — but we ALSO validate
+                    on server. NEVER trust client-side validation alone
+                    (hackers can bypass browser by sending raw HTTP requests)
+                -->
+                <span class="field-error" id="usernameError"></span>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="your@email.com"
+                    required
+                >
+                <span class="field-error" id="emailError"></span>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="Create password (min 6 chars)"
+                    required
+                    minlength="6"
+                >
+                <span class="field-error" id="passwordError"></span>
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <input
+                    type="password"
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    placeholder="Repeat password"
+                    required
+                >
+                <span class="field-error" id="confirmError"></span>
+            </div>
+
+            <div class="form-error" id="formError" style="display:none;"></div>
+
+            <button type="submit" class="btn btn-primary btn-full" id="registerBtn">
+                Create Account
+            </button>
+
+            <p class="form-footer">
+                Already have an account?
+                <a href="/login">Login here</a>
+            </p>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('registerForm').addEventListener('submit', async function(e) {
+        // ─── PREVENT DEFAULT FORM SUBMISSION ───
+        e.preventDefault();
+        // Normally, <form> would reload the page when submitted.
+        // e.preventDefault() stops that behavior.
+        // We handle submission via JavaScript (AJAX) instead.
+
+        // ─── CLEAR PREVIOUS ERRORS ───
+        document.querySelectorAll('.field-error').forEach(el => el.textContent = '');
+        document.getElementById('formError').style.display = 'none';
+
+        // ─── GET FORM VALUES ───
+        const username = document.getElementById('username').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        // ─── CLIENT-SIDE VALIDATION ───
+        let hasError = false;
+
+        if (!username || username.length < 3) {
+            document.getElementById('usernameError').textContent = 'Username must be at least 3 characters';
+            hasError = true;
+        }
+
+        if (!email) {
+            document.getElementById('emailError').textContent = 'Email is required';
+            hasError = true;
+        }
+
+        if (!password || password.length < 6) {
+            document.getElementById('passwordError').textContent = 'Password must be at least 6 characters';
+            hasError = true;
+        }
+
+        if (password !== confirmPassword) {
+            document.getElementById('confirmError').textContent = 'Passwords do not match';
+            hasError = true;
+        }
+
+        if (hasError) return;  // Stop here, don't send request
+
+        // ─── DISABLE BUTTON (prevent double submit) ───
+        const btn = document.getElementById('registerBtn');
+        btn.disabled = true;
+        btn.textContent = 'Creating account...';
+
+        try {
+            // ─── SEND POST REQUEST TO BACKEND ───
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Tells server we're sending JSON, not form data
+                },
+                body: JSON.stringify({
+                    username: username,
+                    email: email,
+                    password: password
+                })
+                // JSON.stringify converts JS object to JSON string:
+                // {username: "john", email: "j@e.com", password: "secret"}
+                // → '{"username":"john","email":"j@e.com","password":"secret"}'
+            });
+
+            const data = await res.json();
+            // Parse the JSON response back to a JS object
+
+            if (res.ok) {
+                // 201 Created — Success!
+                alert(data.message);  // "Registration successful! Please login."
+                window.location.href = '/login';  // Redirect to login
+            } else {
+                // 4xx or 5xx — Error!
+                document.getElementById('formError').textContent = data.message;
+                document.getElementById('formError').style.display = 'block';
+            }
+        } catch (err) {
+            // Network error (server not running, no internet, etc.)
+            document.getElementById('formError').textContent = 'Connection error. Please try again.';
+            document.getElementById('formError').style.display = 'block';
+        } finally {
+            // Re-enable button regardless of outcome
+            btn.disabled = false;
+            btn.textContent = 'Create Account';
+        }
+    });
+</script>
+{% endblock %}

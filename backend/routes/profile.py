@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from services.db_service import find_one, update_one
-from auth_jwt import get_current_user, pwd_context, verify_password
+from auth_jwt import get_current_user, pwd_context, verify_password, validate_password_strength
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/profile", tags=["profile"])
@@ -44,10 +44,8 @@ ALLOWED_UPDATE_FIELDS = {
 async def get_profile(current_user_id: str = Depends(get_current_user)):
     user = await find_one("users", {"userId": current_user_id}, {"_id": 0, "password": 0})
     if not user:
-        from database import get_db
-        if get_db() is None:
-            raise HTTPException(status_code=404, detail="User not found")
-    return {"profile": user, "source": "mongodb"}
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"profile": user, "source": "database"}
 
 
 @router.put("/password")
@@ -64,9 +62,13 @@ async def change_password(
     if not verify_password(body.currentPassword, user.get("password", "")):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
 
+    pw_error = validate_password_strength(body.newPassword)
+    if pw_error:
+        raise HTTPException(status_code=400, detail=pw_error)
+
     hashed = pwd_context.hash(body.newPassword)
     await update_one("users", {"userId": current_user_id}, {"$set": {"password": hashed}})
-    return {"success": True, "source": "mongodb"}
+    return {"success": True, "source": "database"}
 
 
 @router.put("")
@@ -89,6 +91,6 @@ async def update_profile(
     if updated:
         updated.pop("password", None)
         updated.pop("_id", None)
-        return {"profile": updated, "source": "mongodb"}
+        return {"profile": updated, "source": "database"}
 
-    return {"success": True, "source": "mock"}
+    return {"success": True, "source": "fallback"}

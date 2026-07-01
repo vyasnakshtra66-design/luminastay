@@ -6,7 +6,7 @@ class TestContact:
         resp = client.get("/api/contact")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["source"] == "mock"
+        assert data["source"] == "fallback"
         assert "contact" in data
 
     def test_contact_submission_success(self, client, csrf_headers):
@@ -55,11 +55,7 @@ class TestContact:
 class TestWishlist:
     def test_get_wishlist_without_auth(self, client, csrf_headers):
         resp = client.get("/api/wishlist", headers=csrf_headers)
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["source"] == "mock"
-        assert len(data["hotelIds"]) > 0
-        assert data["hotelIds"][0] == 1
+        assert resp.status_code == 401
 
     def test_get_wishlist_with_auth(self, client, auth_headers):
         resp = client.get("/api/wishlist", headers=auth_headers)
@@ -68,7 +64,7 @@ class TestWishlist:
     def test_add_to_wishlist(self, client, auth_headers):
         resp = client.post("/api/wishlist", json={"hotelId": 42}, headers=auth_headers)
         assert resp.status_code == 200
-        assert resp.json()["source"] == "mock"
+        assert resp.json()["source"] == "database"
 
     def test_add_to_wishlist_missing_id(self, client, auth_headers):
         resp = client.post("/api/wishlist", json={"hotelId": 0}, headers=auth_headers)
@@ -77,7 +73,7 @@ class TestWishlist:
     def test_remove_from_wishlist(self, client, auth_headers):
         resp = client.delete("/api/wishlist?hotelId=1", headers=auth_headers)
         assert resp.status_code == 200
-        assert resp.json()["source"] == "mock"
+        assert resp.json()["source"] == "database"
 
     def test_remove_from_wishlist_missing_id(self, client, auth_headers):
         resp = client.delete("/api/wishlist?hotelId=0", headers=auth_headers)

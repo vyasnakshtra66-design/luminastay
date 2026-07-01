@@ -4,9 +4,9 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     mongo_uri: str = "mongodb://localhost:27017"
     db_name: str = "luminastay"
-    secret_key: str = "dev-secret-key-change-in-production"
+    secret_key: str = ""  # Must be set via SECRET_KEY env var in production
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60 * 24 * 7
+    access_token_expire_minutes: int = 60
     resend_api_key: str = ""
     email_from: str = "noreply@luminastay.com"
     frontend_url: str = "http://localhost:3000"

@@ -11,8 +11,8 @@ interface SessionUser { id?: string; }
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: process.env.GOOGLE_CLIENT_ID ?? (() => { throw new Error("GOOGLE_CLIENT_ID not set") })(),
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? (() => { throw new Error("GOOGLE_CLIENT_SECRET not set") })(),
     }),
     Credentials({
       name: "credentials",
@@ -49,8 +49,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               }
             }
           }
-        } catch {
-          // MongoDB unavailable — fall through to demo login
+        } catch (err) {
+          console.error("Auth error:", err);
+          return null;
         }
 
         if (process.env.ENABLE_DEMO_LOGIN === "true" && email === "demo@luminastay.com" && password === "demo123") {

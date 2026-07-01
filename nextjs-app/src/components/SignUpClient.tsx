@@ -131,8 +131,8 @@ export default function SignUpClient() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Something went wrong."); return; }
-      setStep("success");
-      setTimeout(() => router.push("/login"), 3000);
+      router.push("/");
+      router.refresh();
     } catch {
       console.warn("Failed to sign up");
       setError("Network error. Please check your connection.");

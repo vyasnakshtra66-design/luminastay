@@ -5,10 +5,22 @@ from fastapi import Depends, HTTPException, status, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from config import settings
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer(auto_error=False)
 
 PASSWORD_REGEX = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?\":{}|<>]).{8,}$"
+
+
+def _get_secret() -> str:
+    key = settings.secret_key
+    if not key:
+        logger.warning("SECRET_KEY not set! Using insecure fallback. Set SECRET_KEY env var.")
+        key = "dev-secret-key-change-in-production"
+    return key
 
 
 def hash_password(password: str) -> str:
@@ -35,7 +47,7 @@ def validate_password_strength(password: str) -> str | None:
 
 def create_token(user_id: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
-    return jwt.encode({"sub": user_id, "exp": expire}, settings.secret_key, algorithm=settings.algorithm)
+    return jwt.encode({"sub": user_id, "exp": expire}, _get_secret(), algorithm=settings.algorithm)
 
 
 def is_production() -> bool:
@@ -57,7 +69,7 @@ def set_token_cookie(response: Response, token: str):
 
 def decode_token(token: str) -> str | None:
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        payload = jwt.decode(token, _get_secret(), algorithms=[settings.algorithm])
         return payload.get("sub")
     except JWTError:
         return None

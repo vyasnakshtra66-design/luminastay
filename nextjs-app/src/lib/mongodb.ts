@@ -24,6 +24,12 @@ export async function connectDB(): Promise<typeof mongoose | null> {
       serverSelectionTimeoutMS: 2000,
     });
   }
-  cached.conn = await cached.promise;
-  return cached.conn;
+  try {
+    cached.conn = await cached.promise;
+    return cached.conn;
+  } catch (e) {
+    cached.promise = null;
+    console.error("MongoDB connection failed:", e);
+    throw e;
+  }
 }

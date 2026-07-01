@@ -30,7 +30,7 @@ async def get_faqs(
 
     result = await find_many("faqs", filter_dict, {"_id": 0}, [("order", 1)], page, limit)
     if result["data"] is not None:
-        return {"faqs": result["data"], "pagination": result["pagination"], "source": "mongodb"}
+        return {"faqs": result["data"], "pagination": result["pagination"], "source": "database"}
 
     items = get_mock_faqs(category=category, search=search)
     total = len(items)
@@ -45,5 +45,5 @@ async def get_faqs(
             "totalPages": (total + limit - 1) // limit,
             "hasMore": skip + limit < total,
         },
-        "source": "mock",
+        "source": "fallback",
     }

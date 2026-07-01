@@ -11,5 +11,5 @@ router = APIRouter(prefix="/api/terms", tags=["terms"])
 async def get_terms():
     terms = await find_one("terms", {}, {"_id": 0}, [("createdAt", -1)])
     if terms:
-        return {"terms": terms, "source": "mongodb"}
-    return {"terms": MOCK_TERMS, "source": "mock"}
+        return {"terms": terms, "source": "database"}
+    return {"terms": MOCK_TERMS, "source": "fallback"}

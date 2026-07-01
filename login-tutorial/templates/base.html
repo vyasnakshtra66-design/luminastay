@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Login System{% endblock %}</title>
+    <!--
+        Every page extends this template.
+        {% block title %} and {% block content %} are filled by child templates.
+        This avoids repeating the same HTML structure on every page.
+    -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!--
+        url_for('static', filename='style.css') generates:
+        /static/style.css
+
+        Flask automatically serves files from the 'static/' folder.
+        No route needed — it's automatic.
+    -->
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">LoginSystem</a>
+            <div class="nav-links" id="navLinks">
+                <!--
+                    These links are visible to everyone.
+                    JavaScript will hide/show Login/Register vs Logout
+                    based on whether a user is logged in.
+                -->
+                <a href="/">Home</a>
+                <a href="/login" id="navLogin">Login</a>
+                <a href="/register" id="navRegister">Register</a>
+                <a href="/dashboard" id="navDashboard" style="display:none;">Dashboard</a>
+                <a href="#" id="navLogout" style="display:none;" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        {% block content %}
+        <!-- Child templates insert their content here -->
+        {% endblock %}
+    </main>
+
+    <script>
+        // ─── CHECK LOGIN STATUS ON EVERY PAGE LOAD ───
+        // When any page loads, we check if the user is logged in
+        // by calling GET /api/profile
+        //
+        // If the request succeeds → user IS logged in
+        //   → Show Dashboard and Logout buttons
+        //   → Hide Login and Register buttons
+        // If the request fails (401) → user is NOT logged in
+        //   → Hide Dashboard and Logout buttons
+        //   → Show Login and Register buttons
+
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/profile');
+                // fetch() sends all cookies automatically (including auth_token)
+                // because we set credentials: 'include' (see below)
+
+                if (res.ok) {
+                    // User is logged in!
+                    const data = await res.json();
+                    document.getElementById('navLogin').style.display = 'none';
+                    document.getElementById('navRegister').style.display = 'none';
+                    document.getElementById('navDashboard').style.display = 'inline';
+                    document.getElementById('navLogout').style.display = 'inline';
+
+                    // Store username globally for other scripts to use
+                    window.__user = data.user;
+                } else {
+                    // User is NOT logged in (401 response)
+                    document.getElementById('navLogin').style.display = 'inline';
+                    document.getElementById('navRegister').style.display = 'inline';
+                    document.getElementById('navDashboard').style.display = 'none';
+                    document.getElementById('navLogout').style.display = 'none';
+                }
+            } catch (err) {
+                console.error('Auth check failed:', err);
+            }
+        }
+
+        // ─── LOGOUT FUNCTION ───
+        async function logout() {
+            if (!confirm('Are you sure you want to logout?')) return;
+
+            try {
+                const res = await fetch('/api/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                    // credentials: 'include' sends cookies with the request
+                });
+
+                if (res.ok) {
+                    // Clear any localStorage data (if stored)
+                    localStorage.removeItem('auth_token');
+                    // Redirect to home page
+                    window.location.href = '/';
+                }
+            } catch (err) {
+                console.error('Logout failed:', err);
+            }
+        }
+
+        // ─── RUN AUTH CHECK WHEN PAGE LOADS ───
+        // DOMContentLoaded fires after the HTML is fully loaded
+        // but before images/styles finish loading
+        document.addEventListener('DOMContentLoaded', checkAuth);
+    </script>
+    {% block scripts %}{% endblock %}
+    <!-- Child templates can add their own scripts here -->
+</body>
+</html>

@@ -16,12 +16,12 @@ async def get_about():
             "team": about.get("team", MOCK_TEAM),
             "testimonials": about.get("testimonials", MOCK_TESTIMONIALS),
             "stats": about.get("stats", MOCK_STATS),
-            "source": "mongodb",
+            "source": "database",
         }
     return {
         "company": MOCK_COMPANY,
         "team": MOCK_TEAM,
         "testimonials": MOCK_TESTIMONIALS,
         "stats": MOCK_STATS,
-        "source": "mock",
+        "source": "fallback",
     }

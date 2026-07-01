@@ -12,8 +12,8 @@ class TestHealth:
         resp = client.get("/health")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "degraded"
-        assert data["details"]["database"] == "unavailable"
+        assert data["status"] == "healthy"
+        assert data["details"]["database"] == "connected"
 
 
 class TestHotels:
@@ -21,8 +21,8 @@ class TestHotels:
         resp = client.get("/api/hotels/1/rooms/1")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["id"] == "1"
-        assert "pricePerNight" in data
+        assert data["room"]["id"] == "1"
+        assert "pricePerNight" in data["room"]
 
     def test_room_details_not_found(self, client):
         resp = client.get("/api/hotels/1/rooms/nonexistent-room")
@@ -32,7 +32,7 @@ class TestHotels:
     def test_room_details_another_valid(self, client):
         resp = client.get("/api/hotels/1/rooms/2")
         assert resp.status_code == 200
-        assert resp.json()["id"] == "2"
+        assert resp.json()["room"]["id"] == "2"
 
 
 class TestDestinations:
@@ -40,7 +40,7 @@ class TestDestinations:
         resp = client.get("/api/destinations")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["source"] == "mock"
+        assert data["source"] == "database"
         assert "destinations" in data
         assert len(data["destinations"]) > 0
 
@@ -71,7 +71,7 @@ class TestOffers:
         resp = client.get("/api/offers")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["source"] == "mock"
+        assert data["source"] == "database"
         assert "offers" in data
         assert len(data["offers"]) > 0
 
@@ -98,23 +98,20 @@ class TestOffers:
 class TestNotifications:
     def test_get_notifications_without_auth(self, client, csrf_headers):
         resp = client.get("/api/notifications", headers=csrf_headers)
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["source"] == "mock"
-        assert "notifications" in data
+        assert resp.status_code == 401
 
     def test_get_notifications_with_auth(self, client, auth_headers):
         resp = client.get("/api/notifications", headers=auth_headers)
         assert resp.status_code == 200
 
-    def test_get_unread_notifications(self, client, csrf_headers):
-        resp = client.get("/api/notifications?unreadOnly=true", headers=csrf_headers)
+    def test_get_unread_notifications(self, client, auth_headers):
+        resp = client.get("/api/notifications?unreadOnly=true", headers=auth_headers)
         assert resp.status_code == 200
         for n in resp.json()["notifications"]:
             assert n["read"] is False
 
-    def test_notifications_pagination(self, client, csrf_headers):
-        resp = client.get("/api/notifications?page=1&limit=5", headers=csrf_headers)
+    def test_notifications_pagination(self, client, auth_headers):
+        resp = client.get("/api/notifications?page=1&limit=5", headers=auth_headers)
         assert resp.status_code == 200
 
     def test_mark_notification_read(self, client, auth_headers):
@@ -148,7 +145,7 @@ class TestFAQ:
         resp = client.get("/api/faq")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["source"] == "mock"
+        assert data["source"] == "database"
         assert "faqs" in data
         assert len(data["faqs"]) > 0
 
@@ -173,7 +170,7 @@ class TestAbout:
         resp = client.get("/api/about")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["source"] == "mock"
+        assert data["source"] == "database"
         assert "company" in data
         assert "team" in data
         assert "testimonials" in data
@@ -185,7 +182,7 @@ class TestTerms:
         resp = client.get("/api/terms")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["source"] == "mock"
+        assert data["source"] == "database"
         assert "terms" in data
 
 
@@ -194,7 +191,7 @@ class TestPrivacy:
         resp = client.get("/api/privacy")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["source"] == "mock"
+        assert data["source"] == "database"
         assert "policy" in data
 
 
@@ -206,7 +203,8 @@ class TestCSRF:
         assert "csrfToken" in data
         assert len(data["csrfToken"]) == 64  # hex 32 bytes
 
-    def test_csrf_missing_origin_rejected(self, client):
-        resp = client.post("/api/auth/login", json={"email": "", "password": ""})
+    def test_csrf_unknown_origin_rejected(self, client):
+        resp = client.post("/api/auth/login", json={"email": "john@example.com", "password": "demo123"},
+            headers={"Origin": "https://evil.com"})
         assert resp.status_code == 403
         assert "CSRF" in resp.json()["error"]

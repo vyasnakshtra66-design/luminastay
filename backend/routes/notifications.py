@@ -25,7 +25,7 @@ async def get_notifications(
 
     result = await find_many("notifications", filter_dict, {"_id": 0}, [("createdAt", -1)], page, limit)
     if result["data"] is not None:
-        return {"notifications": result["data"], "pagination": result["pagination"], "source": "mongodb"}
+        return {"notifications": result["data"], "pagination": result["pagination"], "source": "database"}
 
     items = get_mock_notifications(current_user_id)
     if category and category != "all":
@@ -44,7 +44,7 @@ async def get_notifications(
             "totalPages": (total + limit - 1) // limit,
             "hasMore": skip + limit < total,
         },
-        "source": "mock",
+        "source": "fallback",
     }
 
 
@@ -65,13 +65,13 @@ async def update_notification(
             {"$set": {"read": True}},
         )
         if updated:
-            return {"success": True, "source": "mongodb"}
+            return {"success": True, "source": "database"}
     elif body.action == "markAllRead":
         from services.db_service import update_many
         await update_many("notifications", {"userId": current_user_id}, {"$set": {"read": True}})
-        return {"success": True, "source": "mongodb"}
+        return {"success": True, "source": "database"}
 
-    return {"success": True, "source": "mock"}
+    return {"success": True, "source": "fallback"}
 
 
 class NotificationDelete(BaseModel):
@@ -87,4 +87,4 @@ async def delete_notification(
         await delete_many("notifications", {"userId": current_user_id})
     elif body.notificationId:
         await delete_one("notifications", {"userId": current_user_id, "_id": body.notificationId})
-    return {"success": True, "source": "mongodb" if body.notificationId else "mock"}
+    return {"success": True, "source": "database" if body.notificationId else "fallback"}

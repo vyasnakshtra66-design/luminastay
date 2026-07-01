@@ -21,5 +21,5 @@ MOCK_LOYALTY = {
 async def get_loyalty(current_user_id: str = Depends(get_current_user)):
     loyalty = await find_one("loyalty", {"userId": current_user_id}, {"_id": 0})
     if loyalty:
-        return {"loyalty": loyalty, "source": "mongodb"}
-    return {"loyalty": MOCK_LOYALTY, "source": "mock"}
+        return {"loyalty": loyalty, "source": "database"}
+    return {"loyalty": MOCK_LOYALTY, "source": "fallback"}

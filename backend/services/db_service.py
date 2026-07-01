@@ -47,7 +47,7 @@ async def find_many(
 ) -> dict:
     db = get_db()
     if not db:
-        return {"data": None, "source": "mock"}
+        return {"data": None, "source": "fallback"}
 
     skip, lim = paginate(page, limit)
     col = db[collection]
@@ -59,7 +59,7 @@ async def find_many(
         return {
             "data": items,
             "total": total,
-            "source": "mongodb",
+            "source": "database",
             "pagination": {
                 "page": page,
                 "limit": lim,
@@ -70,7 +70,7 @@ async def find_many(
         }
     except Exception as e:
         logger.error("DB find_many error [%s]: %s", collection, e)
-        return {"data": None, "source": "error", "error": str(e)}
+        return {"data": None, "source": "fallback", "error": str(e)}
 
 
 async def find_one(

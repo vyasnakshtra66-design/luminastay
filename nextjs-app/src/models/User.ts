@@ -19,14 +19,23 @@ const UserSchema = new Schema<IUser>(
     userId: { type: String, default: "", index: true },
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    password: { type: String, required: true },
+    password: { type: String, required: true, select: false },
     mobile: { type: String, required: true, trim: true },
     country: { type: String, default: "" },
     preferredCurrency: { type: String, default: "USD" },
     travelPreferences: [{ type: String }],
     image: { type: String, default: "" },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: {
+      transform(_doc: unknown, ret: Record<string, unknown>) {
+        delete ret.password;
+        delete ret.__v;
+        return ret;
+      },
+    },
+  }
 );
 
 export default mongoose.models.User || mongoose.model<IUser>("User", UserSchema);

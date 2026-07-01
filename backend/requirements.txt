@@ -8,8 +8,8 @@ python-multipart==0.0.9
 pydantic==2.9.2
 pydantic-settings==2.5.2
 slowapi==0.1.9
-mongomock
-sentinels
+mongomock==4.1.2
+sentinels==1.0.0
 resend==2.32.2
 
 # testing

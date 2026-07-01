@@ -21,8 +21,8 @@ def _get_mock_wishlist() -> list[int]:
 async def get_wishlist(current_user_id: str = Depends(get_current_user)):
     wishlist = await find_one("wishlists", {"userId": current_user_id}, {"_id": 0})
     if wishlist is not None:
-        return {"hotelIds": wishlist.get("hotelIds", []), "source": "mongodb"}
-    return {"hotelIds": _get_mock_wishlist(), "source": "mock"}
+        return {"hotelIds": wishlist.get("hotelIds", []), "source": "database"}
+    return {"hotelIds": _get_mock_wishlist(), "source": "fallback"}
 
 
 @router.post("")
@@ -40,8 +40,8 @@ async def add_to_wishlist(
         upsert=True,
     )
     if result:
-        return {"hotelIds": result.get("hotelIds", []), "source": "mongodb"}
-    return {"success": True, "source": "mock"}
+        return {"hotelIds": result.get("hotelIds", []), "source": "database"}
+    return {"success": True, "source": "fallback"}
 
 
 @router.delete("")
@@ -58,5 +58,5 @@ async def remove_from_wishlist(
         {"$pull": {"hotelIds": hotelId}},
     )
     if result:
-        return {"hotelIds": result.get("hotelIds", []), "source": "mongodb"}
-    return {"success": True, "source": "mock"}
+        return {"hotelIds": result.get("hotelIds", []), "source": "database"}
+    return {"success": True, "source": "fallback"}

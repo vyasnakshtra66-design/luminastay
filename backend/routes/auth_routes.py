@@ -2,7 +2,6 @@ import re
 import time
 import uuid
 import random
-import os
 import logging
 from fastapi import APIRouter, HTTPException, Response, Request
 from pydantic import BaseModel
@@ -43,9 +42,11 @@ async def login(request: Request, body: LoginRequest, response: Response):
             raise HTTPException(status_code=401, detail="Invalid email or password")
         token = create_token(user["userId"])
         set_token_cookie(response, token)
+        from datetime import datetime, timezone
+        await update_one("users", {"userId": user["userId"]}, {"$set": {"lastLogin": datetime.now(timezone.utc).isoformat()}})
         return {
             "user": {"userId": user["userId"], "email": user["email"], "name": user["name"], "token": token},
-            "source": "mongodb",
+            "source": "database",
         }
 
     raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -84,17 +85,33 @@ async def register(request: Request, body: RegisterRequest):
 
     if not success:
         logger.info("User registered (mock): %s (%s)", user_id, body.email)
-        return {"message": "Account created successfully! You can now sign in.", "source": "mock"}
+        return {"message": "Account created successfully! You can now sign in.", "source": "fallback"}
 
     logger.info("User registered: %s (%s)", user_id, body.email)
-    return {"message": "Account created successfully! You can now sign in.", "source": "mongodb"}
+    return {"message": "Account created successfully! You can now sign in.", "source": "database"}
 
 
 class ForgotPasswordRequest(BaseModel):
     email: str
 
 
-RESET_TOKENS: dict[str, str] = {}
+RESET_TOKENS: dict[str, dict] = {}
+OTP_STORE: dict[str, dict] = {}
+OTP_MAX_ENTRIES = 500
+
+
+def _cleanup_expired():
+    now = time.time()
+    expired_otp = [k for k, v in OTP_STORE.items() if v.get("expires", 0) < now]
+    for k in expired_otp:
+        del OTP_STORE[k]
+    expired_reset = [k for k, v in RESET_TOKENS.items() if v.get("expires", 0) < now]
+    for k in expired_reset:
+        del RESET_TOKENS[k]
+    if len(OTP_STORE) > OTP_MAX_ENTRIES:
+        sorted_keys = sorted(OTP_STORE.keys(), key=lambda k: OTP_STORE[k].get("expires", 0))
+        for k in sorted_keys[: len(OTP_STORE) - OTP_MAX_ENTRIES]:
+            del OTP_STORE[k]
 
 
 # ── OTP Login ──────────────────────────────────────────────────────────────
@@ -111,21 +128,6 @@ class VerifyOTPRequest(BaseModel):
     otp: str
 
 
-OTP_STORE: dict[str, dict] = {}
-OTP_MAX_ENTRIES = 500
-
-
-def _cleanup_expired():
-    now = time.time()
-    expired = [k for k, v in OTP_STORE.items() if v.get("expires", 0) < now]
-    for k in expired:
-        del OTP_STORE[k]
-    if len(OTP_STORE) > OTP_MAX_ENTRIES:
-        sorted_keys = sorted(OTP_STORE.keys(), key=lambda k: OTP_STORE[k].get("expires", 0))
-        for k in sorted_keys[: len(OTP_STORE) - OTP_MAX_ENTRIES]:
-            del OTP_STORE[k]
-
-
 @router.post("/send-otp")
 @limiter.limit("3/minute")
 async def send_otp(request: Request, body: SendOTPRequest):
@@ -140,12 +142,11 @@ async def send_otp(request: Request, body: SendOTPRequest):
 
     if body.email:
         from services.email_service import send_otp_email
-        send_otp_email(body.email, otp)
+        await send_otp_email(body.email, otp)
 
     logger.info("OTP for %s: %s (expires in 5 min)", identifier, otp)
 
-    return_otp = otp if os.getenv("NODE_ENV") == "development" or os.getenv("ENABLE_DEMO_LOGIN") == "true" else None
-    return {"message": "OTP sent successfully.", "otp": return_otp, "source": "dev"}
+    return {"message": "OTP sent successfully.", "source": "fallback"}
 
 
 @router.post("/verify-otp")
@@ -169,13 +170,13 @@ async def verify_otp(request: Request, body: VerifyOTPRequest, response: Respons
 
     if not user:
         logger.info("OTP login (mock): new session for %s", identifier)
-        return {"user": {"userId": "otp-" + identifier, "email": body.email or "", "name": "Guest"}, "source": "mock"}
+        return {"user": {"userId": "otp-" + identifier, "email": body.email or "", "name": "Guest"}, "source": "fallback"}
 
     token = create_token(user["userId"])
     set_token_cookie(response, token)
     return {
         "user": {"userId": user["userId"], "email": user["email"], "name": user["name"], "token": token},
-        "source": "mongodb",
+        "source": "database",
     }
 
 
@@ -199,7 +200,7 @@ async def forgot_password(request: Request, body: ForgotPasswordRequest):
     RESET_TOKENS[token] = {"userId": uid, "email": body.email.lower(), "expires": time.time() + 3600}
 
     from services.email_service import send_password_reset
-    send_password_reset(body.email.lower(), token)
+    await send_password_reset(body.email.lower(), token)
 
     return {"message": "If that email is registered, a reset link has been sent."}
 
@@ -223,13 +224,13 @@ async def reset_password(body: ResetPasswordRequest):
         user = await update_one("users", {"email": token_data["email"]}, {"$set": {"password": hash_password(body.password)}, "$unset": {"resetToken": "", "resetTokenExpires": ""}})
         del RESET_TOKENS[body.token]
         if user:
-            return {"message": "Password has been reset successfully.", "source": "mongodb"}
+            return {"message": "Password has been reset successfully.", "source": "database"}
         logger.info("Password reset (mock) for %s", token_data["email"])
-        return {"message": "Password has been reset successfully.", "source": "mock"}
+        return {"message": "Password has been reset successfully.", "source": "fallback"}
 
     user = await find_one("users", {"resetToken": body.token, "resetTokenExpires": {"$gt": time.time()}})
     if user:
         await update_one("users", {"_id": user["_id"]}, {"$set": {"password": hash_password(body.password)}, "$unset": {"resetToken": "", "resetTokenExpires": ""}})
-        return {"message": "Password has been reset successfully.", "source": "mongodb"}
+        return {"message": "Password has been reset successfully.", "source": "database"}
 
     raise HTTPException(status_code=400, detail="Invalid or expired reset token")

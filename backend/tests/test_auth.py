@@ -45,7 +45,7 @@ class TestRegister:
         resp = client.post("/api/auth/register", json=self.VALID_USER, headers=csrf_headers)
         assert resp.status_code == 201
         data = resp.json()
-        assert data["source"] == "mock"
+        assert data["source"] == "database"
         assert data["message"] == "Account created successfully! You can now sign in."
 
     def test_register_invalid_email(self, client, csrf_headers):

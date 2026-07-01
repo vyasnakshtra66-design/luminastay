@@ -71,7 +71,6 @@ export default function LoginClient() {
       if (!res.ok) { setError(data.detail || "Failed to send OTP."); return; }
       setOtpSent(true);
       startCountdown();
-      if (data.otp) console.info("Dev OTP:", data.otp);
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -107,6 +106,7 @@ export default function LoginClient() {
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!recaptchaToken) { setError("Please complete the reCAPTCHA verification."); return; }
     const cleanEmail = sanitizeEmail(identifier);
     const cleanPassword = password.trim();
     if (!cleanPassword) { setError("Enter your password."); return; }
@@ -236,12 +236,14 @@ export default function LoginClient() {
                   Continue with Google
                 </button>
 
-                <button
-                  onClick={() => signIn("credentials", { callbackUrl, email: "demo@luminastay.com", password: "demo123" })}
-                  className="w-full py-2.5 bg-white border border-stone-200 rounded-lg text-sm text-stone-600 hover:bg-stone-50 transition-all flex items-center justify-center gap-2 mt-2"
-                >
-                  Continue as demo user
-                </button>
+                {process.env.NEXT_PUBLIC_ENABLE_DEMO === "true" && (
+                  <button
+                    onClick={() => signIn("credentials", { callbackUrl, email: process.env.NEXT_PUBLIC_DEMO_EMAIL || "demo@luminastay.com", password: process.env.NEXT_PUBLIC_DEMO_PASSWORD || "demo123" })}
+                    className="w-full py-2.5 bg-white border border-stone-200 rounded-lg text-sm text-stone-600 hover:bg-stone-50 transition-all flex items-center justify-center gap-2 mt-2"
+                  >
+                    Continue as demo user
+                  </button>
+                )}
 
                 <p className="text-center text-xs text-stone-400 mt-6">
                   No account?{" "}
@@ -288,7 +290,7 @@ export default function LoginClient() {
                         autoComplete="current-password"
                         autoFocus
                       />
-                      <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-500" aria-label={showPw ? "Hide" : "Show"} tabIndex={-1}>
+                      <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-500" aria-label={showPw ? "Hide" : "Show"}>
                         {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>

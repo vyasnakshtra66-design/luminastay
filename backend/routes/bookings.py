@@ -39,7 +39,7 @@ async def get_bookings(
 
     result = await find_many("bookings", filter_dict, {"_id": 0}, [("rating", -1)], page, limit)
     if result["data"] is not None:
-        return {"bookings": result["data"], "pagination": result["pagination"], "source": "mongodb"}
+        return {"bookings": result["data"], "pagination": result["pagination"], "source": "database"}
 
     items = get_mock_bookings(current_user_id)
     total = len(items)
@@ -54,7 +54,7 @@ async def get_bookings(
             "totalPages": (total + limit - 1) // limit,
             "hasMore": skip + limit < total,
         },
-        "source": "mock",
+        "source": "fallback",
     }
 
 
@@ -73,6 +73,6 @@ async def update_booking(
     )
     if updated:
         updated.pop("_id", None)
-        return {"booking": updated, "source": "mongodb"}
+        return {"booking": updated, "source": "database"}
 
-    return {"success": True, "action": body.action, "source": "mock"}
+    return {"success": True, "action": body.action, "source": "fallback"}

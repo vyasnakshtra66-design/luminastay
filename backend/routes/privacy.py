@@ -11,5 +11,5 @@ router = APIRouter(prefix="/api/privacy", tags=["privacy"])
 async def get_privacy():
     policy = await find_one("privacy", {}, {"_id": 0}, [("createdAt", -1)])
     if policy:
-        return {"policy": policy, "source": "mongodb"}
-    return {"policy": MOCK_PRIVACY, "source": "mock"}
+        return {"policy": policy, "source": "database"}
+    return {"policy": MOCK_PRIVACY, "source": "fallback"}

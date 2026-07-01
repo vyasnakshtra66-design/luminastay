@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Login System{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!--
+        ─── DASHBOARD / PROFILE PAGE ───
+        This is a PROTECTED page.
+
+        HOW IT PROTECTS ITSELF:
+        1. When the page loads, JavaScript calls GET /api/profile
+        2. The browser automatically sends the auth_token cookie
+        3. The server's @token_required decorator validates the token
+        4. If valid → returns user data → page shows content
+        5. If invalid/expired → returns 401 → page redirects to /login
+
+        TWO LAYERS OF PROTECTION:
+        ┌──────────────────────────────────────────────────────────┐
+        │  LAYER 1: Backend (@token_required decorator)            │
+        │  Even if someone directly requests /api/profile,          │
+        │  they get 401 unless they have a valid token.             │
+        │                                                          │
+        │  LAYER 2: Frontend (JavaScript check)                    │
+        │  If /api/profile returns 401, we redirect to /login.     │
+        │  The HTML content is hidden until auth succeeds.         │
+        └──────────────────────────────────────────────────────────┘
+    -->
+    <div id="loadingState" class="loading-state">
+        <div class="spinner"></div>
+        <p>Checking authentication...</p>
+    </div>
+
+    <div id="profileContent" style="display:none;">
+        <div class="profile-header">
+            <div class="profile-avatar">
+                {{ "{{" }} userData.username.charAt(0).toUpperCase() {{ "}}" }}
+                <!-- Show first letter of username as avatar -->
+            </div>
+            <div>
+                <h1>Welcome, <span id="displayName"></span>!</h1>
+                <p class="text-muted">You are logged in</p>
+            </div>
+        </div>
+
+        <div class="profile-card">
+            <h3>Profile Information</h3>
+            <div class="profile-details">
+                <div class="detail-row">
+                    <span class="detail-label">User ID</span>
+                    <span class="detail-value" id="profileId"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Username</span>
+                    <span class="detail-value" id="profileUsername"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Email</span>
+                    <span class="detail-value" id="profileEmail"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Member Since</span>
+                    <span class="detail-value" id="profileCreated"></span>
+                </div>
+            </div>
+        </div>
+
+        <!--
+            ─── SESSION INFO CARD ───
+            This explains HOW the user is authenticated.
+        -->
+        <div class="session-card">
+            <h3>Session Information</h3>
+            <p class="text-muted">How you are authenticated on this page</p>
+            <div class="session-details">
+                <div class="session-step">
+                    <span class="step-number">1</span>
+                    <div>
+                        <strong>Login Request</strong>
+                        <p>You sent POST /api/login with your credentials</p>
+                    </div>
+                </div>
+                <div class="session-step">
+                    <span class="step-number">2</span>
+                    <div>
+                        <strong>Server Verifies</strong>
+                        <p>Flask checked your password against bcrypt hash in MySQL</p>
+                    </div>
+                </div>
+                <div class="session-step">
+                    <span class="step-number">3</span>
+                    <div>
+                        <strong>JWT Created</strong>
+                        <p>Server signed a token with your user_id and expiry time</p>
+                    </div>
+                </div>
+                <div class="session-step">
+                    <span class="step-number">4</span>
+                    <div>
+                        <strong>Cookie Set</strong>
+                        <p>auth_token cookie stored in your browser (HttpOnly, Secure)</p>
+                    </div>
+                </div>
+                <div class="session-step">
+                    <span class="step-number">5</span>
+                    <div>
+                        <strong>Auto-Sent with Each Request</strong>
+                        <p>Your browser sends the cookie to /api/profile → server decodes → identifies you</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button onclick="logout()" class="btn btn-danger">Logout</button>
+    </div>
+
+    <div id="unauthorizedState" style="display:none;">
+        <div class="unauthorized">
+            <h2>Access Denied</h2>
+            <p>You need to login to view this page.</p>
+            <a href="/login" class="btn btn-primary">Go to Login</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // ─── GLOBAL VARIABLE FOR PROFILE DATA ───
+    let userData = null;
+
+    // ─── ON PAGE LOAD: FETCH PROFILE ───
+    document.addEventListener('DOMContentLoaded', async function() {
+        // Show loading state
+        document.getElementById('loadingState').style.display = 'block';
+
+        try {
+            // ─── FETCH /api/profile ───
+            // The browser AUTOMATICALLY includes the auth_token cookie.
+            // We don't need to manually add headers for the cookie!
+            const res = await fetch('/api/profile', {
+                credentials: 'include'
+                // credentials: 'include' ensures cookies are sent
+                // even for cross-origin requests
+            });
+
+            if (res.ok) {
+                // ─── AUTHENTICATED ───
+                const data = await res.json();
+                userData = data.user;
+
+                // Populate profile fields
+                document.getElementById('displayName').textContent = userData.username;
+                document.getElementById('profileId').textContent = userData.id;
+                document.getElementById('profileUsername').textContent = userData.username;
+                document.getElementById('profileEmail').textContent = userData.email;
+                document.getElementById('profileCreated').textContent = userData.created_at;
+
+                // Show profile content, hide loading
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('profileContent').style.display = 'block';
+            } else {
+                // ─── NOT AUTHENTICATED ───
+                // Token missing, expired, or invalid
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('unauthorizedState').style.display = 'block';
+            }
+        } catch (err) {
+            // Network error
+            document.getElementById('loadingState').innerHTML = `
+                <p class="error-message">Connection error. Please try again.</p>
+                <a href="/login" class="btn btn-primary">Go to Login</a>
+            `;
+        }
+    });
+</script>
+{% endblock %}

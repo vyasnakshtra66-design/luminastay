@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
   images: {
     formats: ["image/avif", "image/webp"],
     deviceSizes: [640, 768, 1024, 1280, 1536],
@@ -52,15 +53,16 @@ const nextConfig: NextConfig = {
       headers: [
         { key: "X-Frame-Options", value: "DENY" },
         { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
         { key: "Content-Security-Policy", value: [
           "default-src 'self'",
-          "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.google.com https://www.gstatic.com",
+          "script-src 'self' 'unsafe-inline' https://www.google.com https://www.gstatic.com",
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' https://images.unsplash.com https://upload.wikimedia.org https://i.pravatar.cc https://maps.googleapis.com https://www.google.com https://www.gstatic.com blob: data:",
           "font-src 'self'",
-          "connect-src 'self' http://localhost:8001 http://localhost:3000 https: ws:",
+          "connect-src 'self' http://localhost:8001 http://localhost:3000 https://luminastay.onrender.com https://nextjs-app-one-kohl.vercel.app",
           "frame-src 'self' https://www.google.com https://www.gstatic.com",
           "frame-ancestors 'none'",
           "base-uri 'self'",
